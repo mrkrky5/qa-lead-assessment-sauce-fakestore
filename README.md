@@ -1,65 +1,113 @@
-QA Lead Assessment – Sauce + FakeStore
-What it does
+QA LEAD ASSESSMENT – SAUCE + FAKESTORE (API & UI)
+=================================================
 
-API: GET https://fakestoreapi.com/products/1, extract title and price, assert status 200 and id 1
+OVERVIEW
+--------
+This repository provides a compact, production-style test suite that:
+- Fetches product data from FakeStore API and validates the payload.
+- Uses API data (title and price) to verify the SauceDemo web UI cart.
+- Applies Page Object Model, explicit waits, and clear assertions.
 
-UI on SauceDemo: log in, add item to cart, compare cart name and price to API data, complete checkout, verify “Thank you for your order!”
+TECH STACK
+----------
+- Java 17
+- Maven
+- JUnit 5
+- Cucumber JVM
+- REST Assured
+- Selenium WebDriver (Chrome)
 
-Tech
+PROJECT STRUCTURE
+-----------------
+src
+└─ test
+   ├─ java
+   │  ├─ common/           -> Config, DriverFactory, Waits, ScenarioContext
+   │  ├─ pages/            -> Page Objects (Login, Products, Cart, Checkout, Done)
+   │  ├─ steps/            -> Cucumber step definitions and Hooks
+   │  └─ runners/          -> CucumberTestRunner (JUnit Platform)
+   └─ resources
+      ├─ features/         -> api_data.feature, ui_e2e.feature
+      └─ config.properties -> default configuration
 
-Java 17 · Maven · JUnit 5 · Cucumber · REST Assured · Selenium Chrome
-
-Structure
-src/test
- ├─ java
- │   ├─ common
- │   ├─ pages
- │   ├─ steps
- │   └─ runners
- └─ resources
-     ├─ features
-     └─ config.properties
-
-Setup
-
-src/test/resources/config.properties
+CONFIGURATION
+-------------
+File: src/test/resources/config.properties
 
 web.baseUrl=https://www.saucedemo.com
 api.baseUrl=https://fakestoreapi.com
 headless=false
 default.timeout.seconds=25
 
-Run
+You can override any property at runtime via -D, for example:
+mvn clean test -DskipTests=false -Dheadless=true -Ddefault.timeout.seconds=30
 
-All tests
+HOW TO RUN
+----------
+1) All tests
+   mvn clean test -DskipTests=false
 
-mvn clean test -DskipTests=false
+2) By tag
+   API only:
+   mvn test -DskipTests=false -Dcucumber.filter.tags="@api"
 
+   UI only:
+   mvn test -DskipTests=false -Dcucumber.filter.tags="@ui"
 
-By tag
+3) Headless mode
+   mvn test -DskipTests=false -Dheadless=true
 
-mvn test -DskipTests=false -Dcucumber.filter.tags="@api"
-mvn test -DskipTests=false -Dcucumber.filter.tags="@ui"
+SCENARIOS
+---------
+1) API TEST – DATA RETRIEVAL (@api)
+   - Sends GET https://fakestoreapi.com/products/1
+   - Asserts status 200 and id = 1
+   - Extracts and stores title and price for later UI validation
 
+2) WEB UI TEST – END-TO-END FLOW (@ui)
+   - Opens SauceDemo and logs in with standard credentials
+   - Adds “Sauce Labs Backpack” to the cart
+   - Asserts cart name and price against the API values
+   - Completes checkout and verifies "Thank you for your order!"
 
-Headless
+Note:
+The FakeStore product title and SauceDemo catalog are different systems. The suite allows strict or flexible verification using properties. To skip the name assertion for demo purposes:
+- set -Dassert.name=false
+To enforce strict matching, keep default settings.
 
-mvn test -DskipTests=false -Dheadless=true
+DESIGN NOTES
+------------
+PAGE OBJECT MODEL
+- Each page exposes a readiness assertion (for example, assertLoaded) and business actions
+- No test logic inside page classes
 
-Evaluation checklist
+EXPLICIT WAITS
+- Centralized in common.Waits using WebDriverWait and ExpectedConditions
+- No Thread.sleep usage
 
-Page Object Model
+WEBDRIVER LIFECYCLE
+- steps.Hooks starts and stops the driver per scenario
+- DriverFactory uses ThreadLocal<WebDriver> and stable Chrome options:
+  headless toggle, disabled password/info popups, temporary user-data-dir
 
-Clean, readable, maintainable code
+API AND UI INTEGRATION
+- ScenarioContext holds API title and price so UI steps can assert against them
+- Assertions include clear failure messages
 
-Explicit waits and stable locators, no Thread.sleep
+USEFUL COMMANDS
+---------------
+Run UI headless by tag:
+mvn test -DskipTests=false -Dcucumber.filter.tags="@ui" -Dheadless=true
 
-API to UI data integration through shared context
+Increase default timeout:
+mvn test -Ddefault.timeout.seconds=40
 
-Clear assertions with helpful messages
+TROUBLESHOOTING
+---------------
+- Chrome DevTools warnings (CDP version) are informational; tests still run
+- Ensure config.properties is under src/test/resources
+- If any local Chrome popups appear in non-headless runs, check that no external extensions interfere
 
-Troubleshooting
-
-Ensure config.properties is under src/test/resources
-
-Chrome DevTools warnings do not block execution
+LICENSE
+-------
+Internal assessment project.
