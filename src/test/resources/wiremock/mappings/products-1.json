@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/products/1"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": 1,
+      "title": "Sauce Labs Backpack",
+      "price": 29.99,
+      "description": "Demo stub for Sauce Labs Backpack",
+      "category": "backpacks"
+    }
+  }
+}

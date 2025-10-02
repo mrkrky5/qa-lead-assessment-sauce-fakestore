@@ -1,6 +1,23 @@
-﻿target/
+﻿# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+.mvn/wrapper/MavenWrapperDownloader.java
+
+# Logs & OS junk
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# IntelliJ / IDEA
 .idea/
 *.iml
-.DS_Store
+out/
+
+# Allure results / reports
 allure-results/
 allure-report/
+
+# Selenium / downloads (ihtimale karşı)
+downloads/
