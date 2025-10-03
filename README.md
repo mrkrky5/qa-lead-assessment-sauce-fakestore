@@ -183,3 +183,106 @@ Internal assessment project.
 - Use a quarantine tag for flaky tests and run them separately until they are resolved.
 - Regularly review health of locators and device/OS portfolio by usage metrics.
 - Keep the flows small and modular with a single focus per test as much as possible.
+
+## Part 3: CI/CD with Web UI + API
+
+**Tool of choice:** GitHub Actions. Why? It’s baked right into the repo, simple to manage, and you can spit out artifacts and pages with basically zero extra hassle.
+
+### So, what’s this pipeline actually doing?
+- Every time you open a PR or push to `main`, it fires up both **API** and **Web UI** tests.
+- There’s a **nightly** run, fresh runner, no crusty leftovers.
+- Chucks out raw test results plus a sweet **Allure** report, so if something blows up, you can actually see *why*.
+
+### Pipeline Stages
+1. **Checkout** – grabs the repo at the commit you’re poking at.
+2. **Set up JDK 17** – caches Maven deps so you’re not waiting around forever.
+3. **Build** – does `mvn -DskipTests install` to make sure stuff fits together.
+4. **Run API tests** – quick sanity check on the fakestore API contract.
+5. **Run Web UI tests** – runs the saucedemo E2E flow, double checks API data isn’t lying.
+6. **Publish reports** – ships up JUnit XML/logs and Allure goodies.
+
+### What actually triggers this thing?
+- **PRs into `main`** – stops sneaky bugs before they land.
+- **Pushes to `main`** – make sure the new stuff isn’t on fire.
+- **Nightly at 2am UTC** – because flaky tests love to hide until you’re asleep.
+- **Manual runs** – hit the button in Actions if you’re feeling paranoid or just bored.
+
+### The workflow file
+Pop this into `.github/workflows/tests.yml`:
+
+```yaml
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: "0 2 * * *"   # nightly 2am UTC
+  workflow_dispatch:       # manual trigger
+
+jobs:
+  api_ui:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: https://www.saucedemo.com
+      API_BASE_URL: https://fakestoreapi.com
+      HEADLESS: "true"     # UI tests won’t pop open a million Chrome windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build (no tests)
+        run: mvn -q -DskipTests install
+
+      # Tweak -f and -Dtest to match your module/package names from Part 1
+      - name: Run API tests
+        run: |
+          mvn -f tests/qa-ui-api/pom.xml \
+            -Dtest=*Api*Test,*ApiIT \
+            -Dsurefire.printSummary=true \
+            test
+
+      - name: Run Web UI tests
+        run: |
+          mvn -f tests/qa-ui-api/pom.xml \
+            -Dtest=*Ui*Test,*E2E* \
+            -Dsurefire.printSummary=true \
+            test
+
+      - name: Upload JUnit and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-and-logs
+          path: |
+            **/target/surefire-reports/**
+            **/target/*.log
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Make sure your test results land in target/allure-results
+      - name: Generate Allure report
+        if: always()
+        uses: simple-elf/allure-report-action@v1.7
+        with:
+          allure_results: "**/target/allure-results"
+          allure_history: allure-history
+          keep_reports: 10
+
+      - name: Publish Allure to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
